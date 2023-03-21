@@ -18,6 +18,8 @@ from timm.models.vision_transformer import PatchEmbed, Block
 
 from util.pos_embed import get_2d_sincos_pos_embed
 
+import numpy as np
+import math
 
 class MaskedAutoencoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
@@ -218,6 +220,108 @@ class MaskedAutoencoderViT(nn.Module):
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
+    
+    def custom_forward(self, imgs, mask_ratio=0.1, labels=None):
+        print("CUSTOM FORWARD")
+        latent, mask, ids_restore = self.custom_forward_encoder(imgs, mask_ratio, labels)
+
+        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        loss = self.forward_loss(imgs, pred, mask)
+        return loss, pred, mask
+    
+    def custom_forward_encoder(self, x, mask_ratio, labels):
+        print("CUSTOM FORWARD ENCODER")
+        # embed patches
+        x = self.patch_embed(x)
+
+        # add pos embed w/o cls token
+        x = x + self.pos_embed[:, 1:, :]
+
+        # masking: length -> length * mask_ratio
+        x, mask, ids_restore = self.custom_masking(x, mask_ratio, labels)
+
+        # append cls token
+        cls_token = self.cls_token + self.pos_embed[:, :1, :]
+        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+
+        # apply Transformer blocks
+        for blk in self.blocks:
+            x = blk(x)
+        x = self.norm(x)
+
+        return x, mask, ids_restore
+    
+    def custom_masking(self, x, mask_ratio, labels):
+        """
+        Perform per-sample random masking by per-sample shuffling.
+        Per-sample shuffling is done by argsort random noise.
+        x: [N, L, D], sequence
+        """
+        print("CUSTOM MASKING")
+        print(labels)
+        N, L, D = x.shape  # batch, length, dim
+        len_keep = int(L * (1 - mask_ratio))
+        
+        noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
+        idxs = []
+
+        for label in labels:
+            label_idxs = idxs_of_label(L, label)
+            for idx in label_idxs:
+                idxs.append(idx)
+
+        print(idxs)
+
+        for idx in idxs:
+            noise[0][idx] = 1.0
+
+        # zeros = np.zeros(len_keep)
+        # ones = np.ones(L - len_keep)
+        # combined = np.concatenate((zeros, ones))
+        # noise = torch.from_numpy(combined.reshape((N, L)))
+        
+        # sort noise for each sample
+        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
+
+        # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep]
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+
+        # generate the binary mask: 0 is keep, 1 is remove
+        mask = torch.ones([N, L], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+
+        return x_masked, mask, ids_restore
+    
+#   Return the indices covered of each label
+def idxs_of_label(L, label):
+    side_len = math.isqrt(L)
+
+    x_min = label[0] - 0.5 * label[2]
+    x_max = label[0] + 0.5 * label[2]
+    y_min = label[1] - 0.5 * label[3]
+    y_max = label[1] + 0.5 * label[3]
+
+    min_col = math.floor(x_min * side_len)
+    max_col = math.ceil(x_max * side_len)
+    min_row = math.floor(y_min * side_len)
+    max_row = math.ceil(y_max * side_len)
+
+    print(min_row, max_row, min_col, max_col)
+
+    idxs = []
+    idx = side_len * min_row + min_col
+    for i in range(max_row - min_row):
+        for j in range(max_col - min_col):
+            idxs.append(idx)
+            idx += 1
+        idx = idx - (max_col - min_col) + side_len
+
+    return idxs
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):
