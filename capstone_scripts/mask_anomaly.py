@@ -1,13 +1,14 @@
 import sys
 import os
 import requests
-import sys
 
 import torch
 import numpy as np
 
 import matplotlib.pyplot as plt
 from PIL import Image
+
+from matplotlib import cm
 
 sys.path.append('..')
 
@@ -76,8 +77,7 @@ def prepare_model(chkpt_dir, arch='mae_vit_large_patch16'):
     return model
 
 #   Makes an inference on one image and shows the 4 different images (original, orignal with mask, reconstruction, visible parts of original + reconstruction)
-def run_one_image(img, labels, model):
-    print("RUNNING ONE IMAGE")
+def run_one_image(img, labels, model, og_size):
     x = torch.tensor(img)
 
     # make it a batch-like
@@ -119,7 +119,9 @@ def run_one_image(img, labels, model):
     plt.subplot(1, 4, 4)
     show_image(im_paste[0], "reconstruction + visible")
 
-    plt.show()
+    np_img = torch.Tensor.numpy(torch.clip((im_paste[0] * imagenet_std + imagenet_mean) * 255, 0, 255).int())
+    save_img = Image.fromarray(np_img.astype('uint8'), 'RGB')
+    return save_img
 
 #   This prepares our mdoel
 # This is an MAE model trained with an extra GAN loss for more realistic generation (ViT-Large, training mask ratio=0.75)
@@ -154,10 +156,10 @@ def path_to_img(path, seed=None):
 def path_label_to_img(img_path, label_path, seed=None):
     if(seed):
         torch.manual_seed(3)
-    print('MAE with extra GAN loss:')
 
     # load an image
     myImg = Image.open(img_path)
+    og_size = myImg.size
     myImg = myImg.resize((224, 224))
     myImg = np.array(myImg) / 255.
 
@@ -178,7 +180,52 @@ def path_label_to_img(img_path, label_path, seed=None):
         labels.append(label)
     labels = np.asarray(labels)
 
-    run_one_image(myImg, labels, model_mae_gan)
+    return run_one_image(myImg, labels, model_mae_gan, og_size)
 
-path_label_to_img('../myImages/newAnomaly.jpg', '../myImages/newAnomaly.txt')
-plt.show()
+# path_label_to_img('../myImages/newAnomaly.jpg', '../myImages/newAnomaly.txt')
+# plt.show()
+
+def main():
+    #   Check inputs
+
+    if(len(sys.argv) != 2):
+        print("Please run this program as follows\n$ python ./mask_anomaly.py {INPUT_DIR_PATH}")
+        exit()
+
+    INPUT_DIR = sys.argv[1]
+
+    if not os.path.isdir(INPUT_DIR + '/images'):
+        print("Input directory has no images subdirectory")
+    if not os.path.isdir(INPUT_DIR + '/labels'):
+        print("Input directory has no images subdirectory")
+
+    #   Get name of all files
+
+    images_names = os.listdir(INPUT_DIR + '/images')
+
+    #   Create result directory if it doesn't already exist
+
+    if not os.path.isdir('./results'):
+        print("Created new directory with results named './results'")
+        os.mkdir('./results')
+
+    if not os.path.isdir('./results/images'):
+        print("Created new directory with results named './results/images'")
+        os.mkdir('./results/images')
+
+    if not os.path.isdir('./results/labels'):
+        print("Created new directory with results named './results/labels'")
+        os.mkdir('./results/labels')
+
+    for image in images_names:
+        image_path = INPUT_DIR + '/images/' + image
+        label_path = INPUT_DIR + '/labels/' + image[:len(image) - 4] + '.txt'
+
+        masked_img = path_label_to_img(image_path, label_path)
+
+        masked_img.save('./results/images/masked_' + image)
+        f = open("./results/labels/masked_" + image[:len(image) - 4] + '.txt', 'w')
+        f.write("\n")
+        f.close()
+
+main()
