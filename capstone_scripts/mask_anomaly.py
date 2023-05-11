@@ -14,46 +14,6 @@ sys.path.append('..')
 
 import models_mae
 
-#   TODO
-#   Download the default model we are using with this command
-#   wget -nc https://dl.fbaipublicfiles.com/mae/visualize/mae_visualize_vit_large_ganloss.pth
-
-#   We want a program that can be ran as:
-#   python mask_anomaly.py {INPUT_DIR}
-
-#   where the input directory, INPUT_DIR has the file structure
-#   INPUT_DIR/
-#       images/
-#           *.jpg
-#       labels/
-#           *.txt
-
-#   each entry in images has a corresponding label in labels. Our dataset is already set up like this
-#   Available here: https://drive.google.com/file/d/1unh8NIVT2BA5dDOFPtwa2Y63LoHVpm_P/view?usp=sharing
-
-#   Currently this script can be run as just
-#   python mask_anomaly.py
-#   and runs on the image and label in myImages
-
-#   When we run the script we should
-#   Create a new directory called ./results
-#   Create an images and labels directory within results
-#   For every image in INPUT_DIR/images
-#       Keep the 4th image from the run_one_image function
-#       Reformat this image to its original dimensions
-#       Save this image to ./results/images/ with the same name but with '_masked.jpg' as the ending of the name
-#       Save a completely empty text file with the same name but with '_masked.txt' as the ending of the name
-#           to ./results/labels/ (this will be helpful for training with Yolo)
-
-#   Hints
-
-#   The path_label_to_img function takes the path to an image and its corresponding label as input
-#   and is sure to cover the anomaly as well as a few other random bits of the image
-
-#   It calls the run_one_image function that outputs 4 images using matplotlib. The 4th one labeled
-#   'reconstruction + visible' is the one we care about. This is the one we want to reformat to the
-#   original dimensions of the input image for saving
-
 #   Globals assosciated with the downloaded model
 imagenet_mean = np.array([0.485, 0.456, 0.406])
 imagenet_std = np.array([0.229, 0.224, 0.225])
