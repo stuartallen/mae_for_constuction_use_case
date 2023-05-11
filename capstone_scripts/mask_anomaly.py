@@ -142,9 +142,6 @@ def path_label_to_img(img_path, label_path, seed=None):
 
     return run_one_image(myImg, labels, model_mae_gan, og_size)
 
-# path_label_to_img('../myImages/newAnomaly.jpg', '../myImages/newAnomaly.txt')
-# plt.show()
-
 def main():
     #   Check inputs
 

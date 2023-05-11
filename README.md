@@ -1,9 +1,27 @@
+##  Masked Autoencoders for Data Augmentation
+
+This repository is a fork of the re-implementation of the paper [Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377):
+
+The changes to this repository include a file in ./capstone_scripts/mask_anomaly.py. This script is able to take a folder of images and their labels
+in YOLOv5 format and ensure the labeled section will be included in the Autoencoders masked section. To run our script use the command:
+
+\$ python ./capstone_scripts/mask_anomaly.py {INPUT_DIR_PATH}
+
+Where your directory has a subdirectory called images filled with images, and a subdirectory called labels filled with YOLOv5 text labels. This script
+will create a directory called results in the capstone_scripts directory with the same file structure. The generated images will be of size 224x224, and 
+will use the implementation of Masked Autoencoders as Scalable Vision Learners to mask the labeled section as well as other random parts of the image. 
+
+Install the following pretrained MAE model into the capstone_scripts directory in order to use our script as is
+
+\$ wget -nc https://dl.fbaipublicfiles.com/mae/visualize/mae_visualize_vit_large_ganloss.pth
+
+Follow the installation instructions of the original README below to set up this repository as well.
+
 ## Masked Autoencoders: A PyTorch Implementation
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/11435359/146857310-f258c86c-fde6-48e8-9cee-badd2b21bd2c.png" width="480">
 </p>
-
 
 This is a PyTorch/GPU re-implementation of the paper [Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377):
 ```
